@@ -82,14 +82,21 @@ class ImodGenericTreeProvider(TreeProvider):
         orderBy = self.ORDER_DICT.get(self.getSortingColumnName(), 'id')
         direction = 'ASC' if self.isSortingAscending() else 'DESC'
 
-        for obj in self.objs.iterItems(orderBy=orderBy, direction=direction):
-            if isinstance(obj, tomo.objects.TiltSeries):
-                item = obj.clone(ignoreAttrs=['_mapperPath'])
-            elif isinstance(obj, tomo.objects.LandmarkModel):
-                self.objs.completeLandmarkModel(obj)
-                item = obj.clone()
-            else:
-                item = obj.clone()
+        # Check if the item is iterable (like "SetOf..."):
+        if hasattr(self.objs, 'iterItems'):
+            for obj in self.objs.iterItems(orderBy=orderBy, direction=direction):
+                if isinstance(obj, tomo.objects.TiltSeries):
+                    item = obj.clone(ignoreAttrs=['_mapperPath'])
+                elif isinstance(obj, tomo.objects.LandmarkModel):
+                    self.objs.completeLandmarkModel(obj)
+                    item = obj.clone()
+                else:
+                    item = obj.clone()
+                item._allowsSelection = True
+                item._parentObject = None
+                objects.append(item)
+        else:
+            item = self.objs.clone()
             item._allowsSelection = True
             item._parentObject = None
             objects.append(item)
@@ -129,7 +136,10 @@ class ImodGenericTreeProvider(TreeProvider):
         return getattr(pobj, '_parentObject', default)
 
     def getObjectInfo(self, obj):
-        itemId = obj.getTsId()
+        if hasattr(obj, 'getTsId'):
+            itemId = obj.getTsId()
+        else:
+            itemId = None
         if itemId is None:
             itemId = str(obj.getObjId())
 
